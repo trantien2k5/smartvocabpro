@@ -1,0 +1,1350 @@
+/* =========================================
+   1. VARIABLES & RESET (Cấu hình chung)
+   ========================================= */
+:root {
+    /* Màu sắc chủ đạo */
+    --primary: #4F46E5;
+    --primary-light: #EEF2FF;
+    --bg: #F8FAFC;
+    --surface: #FFFFFF;
+
+    /* Màu văn bản */
+    --text-main: #1E293B;
+    --text-sub: #64748B;
+
+    /* Trạng thái */
+    --success: #10B981;
+    --error: #EF4444;
+
+    /* Hệ thống RPG (Trứng -> Kim cương) */
+    --egg-color: #F59E0B;
+    --egg-bg: #FFF7ED;
+    --sprout-color: #10B981;
+    --sprout-bg: #ECFDF5;
+    --tree-color: #3B82F6;
+    --tree-bg: #EFF6FF;
+    --diamond-color: #8B5CF6;
+    --diamond-bg: #F3E8FF;
+
+    /* Hiệu ứng bóng đổ (Soft UI) */
+    --card-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+}
+
+* {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    margin: 0;
+    font-family: 'Poppins', sans-serif;
+    background-color: var(--bg);
+    color: var(--text-main);
+    padding-bottom: 90px;
+    /* Chừa chỗ cho menu dưới */
+    overflow-x: hidden;
+}
+
+main {
+    padding: 20px;
+    max-width: 600px;
+    margin: 0 auto;
+    animation: fadeIn 0.4s ease;
+    /* Hiệu ứng hiện trang */
+}
+
+/* FIX QUAN TRỌNG: Dùng margin-top thay vì transform để không làm hỏng vị trí fixed của con */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        margin-top: 10px;
+    }
+
+    to {
+        opacity: 1;
+        margin-top: 0;
+    }
+}
+
+/* =========================================
+   2. HEADER & NAVIGATION (Menu trên/dưới)
+   ========================================= */
+.header-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+/* Menu dưới cùng (Fixed Bottom) */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: var(--surface);
+    border-top: 1px solid #F1F5F9;
+    display: flex;
+    justify-content: space-around;
+    padding: 10px 0 25px 0;
+    z-index: 100;
+}
+
+.nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: #94A3B8;
+    font-size: 0.65rem;
+    cursor: pointer;
+    flex: 1;
+    transition: color 0.2s;
+}
+
+.nav-item i {
+    font-size: 1.3rem;
+    margin-bottom: 5px;
+}
+
+.nav-item.active {
+    color: var(--primary);
+}
+
+/* =========================================
+   3. TAB HOME (Trang chủ & RPG Charts)
+   ========================================= */
+.home-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.user-avatar {
+    width: 45px;
+    height: 45px;
+    background: #E0E7FF;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary);
+    font-weight: bold;
+    font-size: 1.2rem;
+    border: 2px solid white;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* Biểu đồ RPG dạng ống (Capsule Chart) */
+.rpg-chart-card {
+    background: var(--surface);
+    padding: 25px 20px;
+    border-radius: 24px;
+    box-shadow: var(--card-shadow);
+    margin-bottom: 30px;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, 0.02);
+}
+
+.rpg-chart-grid {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    height: 160px;
+    padding: 0 10px;
+    margin-top: 20px;
+    z-index: 1;
+    position: relative;
+}
+
+.rpg-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    flex: 1;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.rpg-col:active {
+    transform: scale(0.95);
+}
+
+.rpg-bar-track {
+    width: 28px;
+    height: 110px;
+    background: #F1F5F9;
+    border-radius: 30px;
+    overflow: hidden;
+    position: relative;
+    margin-bottom: 12px;
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.rpg-bar-fill {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    border-radius: 30px;
+    transition: height 1s cubic-bezier(0.34, 1.56, 0.64, 1);
+    min-height: 0px;
+}
+
+.rpg-icon-box {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    border-radius: 50%;
+    background: white;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    border: 1px solid #F1F5F9;
+}
+
+/* Tiêu đề section */
+.section-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-sub);
+    margin-bottom: 15px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* =========================================
+   4. TAB TOPICS (Danh sách chủ đề)
+   ========================================= */
+.topic-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    padding-bottom: 20px;
+}
+
+.topic-tile {
+    background: var(--surface);
+    border-radius: 20px;
+    padding: 20px 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    border: 1px solid #F1F5F9;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.topic-tile:active {
+    transform: scale(0.96);
+}
+
+.tile-icon-box {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    margin-bottom: 12px;
+    background: #F1F5F9;
+    color: #64748B;
+}
+
+.topic-card {
+    background: var(--surface);
+    border-radius: 20px;
+    padding: 20px;
+    margin-bottom: 15px;
+    border: 1px solid #F1F5F9;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.02);
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.topic-card:active {
+    transform: scale(0.98);
+    background: #F8FAFC;
+}
+
+/* =========================================
+   5. LEARNING (Flashcard & Quiz)
+   ========================================= */
+.lesson-container {
+    padding: 20px;
+    max-width: 600px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+/* Flashcard 3D */
+.flashcard-scene {
+    width: 100%;
+    height: 400px;
+    perspective: 1200px;
+    margin-bottom: 25px;
+    cursor: pointer;
+}
+
+.flashcard-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+    transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
+    transform-style: preserve-3d;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    border-radius: 24px;
+}
+
+.flashcard-scene.is-flipped .flashcard-inner {
+    transform: rotateY(180deg);
+}
+
+.flashcard-front,
+.flashcard-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    border-radius: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 25px;
+    background: white;
+    border: 1px solid #F1F5F9;
+    overflow: hidden;
+}
+
+.flashcard-front {
+    background: linear-gradient(145deg, #ffffff, #f8fafc);
+}
+
+.flashcard-back {
+    transform: rotateY(180deg);
+    background: #ffffff;
+    padding-top: 40px;
+    padding-bottom: 40px;
+}
+
+.card-word {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: var(--text-main);
+    margin-bottom: 10px;
+    line-height: 1.1;
+}
+
+.card-ipa {
+    font-family: 'Times New Roman', serif;
+    font-style: italic;
+    color: #64748B;
+    font-size: 1.1rem;
+    background: #F1F5F9;
+    padding: 5px 15px;
+    border-radius: 20px;
+    margin-bottom: 20px;
+}
+
+.bg-icon-decoration {
+    position: absolute;
+    top: -20px;
+    right: -20px;
+    font-size: 10rem;
+    color: var(--primary);
+    opacity: 0.03;
+    transform: rotate(15deg);
+    pointer-events: none;
+}
+
+.btn-card-audio {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: white;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    box-shadow: 0 8px 20px rgba(79, 70, 229, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-card-audio:active {
+    transform: scale(0.9);
+}
+
+/* Quiz Styles */
+.lesson-card {
+    background: white;
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+    text-align: center;
+    border: 1px solid #F1F5F9;
+    animation: slideUp 0.4s ease;
+}
+
+.quiz-word {
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: var(--primary);
+    margin: 10px 0;
+}
+
+.quiz-options-grid {
+    display: grid;
+    gap: 15px;
+}
+
+.quiz-opt-btn {
+    padding: 18px;
+    border: 2px solid #E2E8F0;
+    background: white;
+    border-radius: 15px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 100%;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.quiz-opt-btn:active {
+    transform: scale(0.98);
+}
+
+.quiz-opt-btn.correct {
+    background: #D1FAE5;
+    border-color: #10B981;
+    color: #065F46;
+}
+
+.quiz-opt-btn.wrong {
+    background: #FEE2E2;
+    border-color: #EF4444;
+    color: #991B1B;
+}
+
+/* =========================================
+   6. REVIEW & COLLECTION (Sổ tay & Ôn tập)
+   ========================================= */
+.word-row {
+    background: white;
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 12px;
+    border: 1px solid #F1F5F9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.02);
+    cursor: pointer;
+}
+
+.word-row:active {
+    transform: scale(0.98);
+}
+
+.stat-badge {
+    padding: 8px 12px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.03);
+    white-space: nowrap;
+}
+
+/* Thanh tìm kiếm dính (Sticky) */
+.sticky-header {
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 10;
+    padding-bottom: 10px;
+}
+
+.search-box {
+    display: flex;
+    align-items: center;
+    background: var(--surface);
+    border: 1px solid #E2E8F0;
+    border-radius: 12px;
+    padding: 12px 15px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    margin-bottom: 12px;
+}
+
+.search-box input {
+    border: none;
+    outline: none;
+    width: 100%;
+    font-size: 1rem;
+    color: var(--text-main);
+    background: transparent;
+}
+
+/* =========================================
+   7. SETTINGS & PROFILE (Cài đặt)
+   ========================================= */
+.setting-card {
+    background: var(--surface);
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid #F1F5F9;
+    margin-bottom: 20px;
+}
+
+.setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    border-bottom: 1px solid #F1F5F9;
+    cursor: pointer;
+}
+
+.setting-row:last-child {
+    border-bottom: none;
+}
+
+.st-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    color: white;
+    margin-right: 15px;
+}
+
+.st-left {
+    display: flex;
+    align-items: center;
+    flex: 1;
+}
+
+.st-text h4 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.st-text p {
+    margin: 2px 0 0 0;
+    font-size: 0.8rem;
+    color: var(--text-sub);
+}
+
+/* --- Các thành phần Form trong Settings --- */
+/* Công tắc (Switch) */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 26px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #CBD5E1;
+    transition: .4s;
+    border-radius: 34px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked+.slider {
+    background-color: var(--primary);
+}
+
+input:checked+.slider:before {
+    transform: translateX(24px);
+}
+
+/* Thanh kéo (Range) */
+.speed-slider {
+    width: 100px;
+    accent-color: var(--primary);
+    cursor: pointer;
+    height: 4px;
+}
+
+/* Nút chọn giọng */
+.voice-trigger-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: transparent;
+    border: none;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--primary);
+    cursor: pointer;
+    padding: 5px 0;
+}
+
+.voice-flag {
+    font-size: 1.4rem;
+}
+
+/* Avatar Grid */
+.avatar-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 15px;
+    margin: 20px 0;
+}
+
+.avatar-option {
+    width: 60px;
+    height: 60px;
+    background: #F8FAFC;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: 0.2s;
+}
+
+.avatar-option.selected {
+    background: #EEF2FF;
+    border-color: var(--primary);
+    transform: scale(1.1);
+}
+
+/* =========================================
+   8. MODALS & OVERLAYS (Cửa sổ bật lên)
+   ========================================= */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: 0.3s;
+    backdrop-filter: blur(4px);
+}
+
+.modal-overlay.show {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.modal-box {
+    background: var(--surface);
+    width: 85%;
+    max-width: 350px;
+    padding: 25px;
+    border-radius: 24px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    transform: scale(0.9);
+    transition: 0.3s;
+}
+
+.modal-overlay.show .modal-box {
+    transform: scale(1);
+}
+
+.modal-input {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #E2E8F0;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    outline: none;
+    font-size: 1rem;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-modal {
+    flex: 1;
+    padding: 12px;
+    border-radius: 12px;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-save {
+    background: var(--primary);
+    color: white;
+}
+
+.btn-cancel {
+    background: #F1F5F9;
+    color: #64748B;
+}
+
+/* Voice Selection Sheet (Trượt từ dưới lên) */
+.voice-sheet-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 2000;
+    opacity: 0;
+    pointer-events: none;
+    transition: 0.3s;
+    backdrop-filter: blur(2px);
+}
+
+.voice-sheet-overlay.show {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.voice-sheet {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: white;
+    border-radius: 24px 24px 0 0;
+    padding: 25px 20px 40px 20px;
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    box-shadow: 0 -5px 30px rgba(0, 0, 0, 0.15);
+    z-index: 2001;
+}
+
+.voice-sheet-overlay.show .voice-sheet {
+    transform: translateY(0);
+}
+
+.voice-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    border-radius: 16px;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    margin-bottom: 12px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.voice-option.selected {
+    border-color: var(--primary);
+    background: #EEF2FF;
+    box-shadow: 0 0 0 2px var(--primary-light);
+}
+
+.v-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.v-name {
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.v-check {
+    color: var(--primary);
+    opacity: 0;
+    transform: scale(0.5);
+    transition: 0.2s;
+    font-size: 1.2rem;
+}
+
+.voice-option.selected .v-check {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* Result Sheet (Kết quả Quiz) */
+.result-sheet {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: white;
+    z-index: 2000;
+    border-radius: 24px 24px 0 0;
+    box-shadow: 0 -5px 30px rgba(0, 0, 0, 0.15);
+    transform: translateY(110%);
+    transition: transform 0.3s;
+    padding: 20px 20px 30px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.result-sheet.show {
+    transform: translateY(0);
+}
+
+.result-sheet.correct {
+    border-top: 5px solid #10B981;
+}
+
+.result-sheet.wrong {
+    border-top: 5px solid #EF4444;
+}
+
+.btn-sheet-action {
+    width: 100%;
+    padding: 16px;
+    border-radius: 16px;
+    border: none;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    color: white;
+}
+
+/* Word Detail Modal (Chi tiết từ) */
+.word-detail-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: 0.3s;
+    backdrop-filter: blur(8px);
+}
+
+.word-detail-modal.show {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.detail-card {
+    background: white;
+    width: 85%;
+    max-width: 380px;
+    border-radius: 30px;
+    overflow: hidden;
+    text-align: center;
+    transform: scale(0.9);
+    transition: 0.3s;
+    position: relative;
+}
+
+.word-detail-modal.show .detail-card {
+    transform: scale(1);
+}
+
+.detail-header {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    padding: 40px 20px 50px 20px;
+    color: white;
+    position: relative;
+}
+
+.btn-speak-floating {
+    width: 60px;
+    height: 60px;
+    background: #F59E0B;
+    color: white;
+    border: 4px solid white;
+    border-radius: 50%;
+    font-size: 1.5rem;
+    cursor: pointer;
+    position: absolute;
+    bottom: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    box-shadow: 0 10px 15px -3px rgba(245, 158, 11, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* =========================================
+   9. UTILITIES & DARK MODE
+   ========================================= */
+.toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 99999;
+    background: white;
+    color: #1E293B;
+    padding: 12px 24px;
+    border-radius: 50px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    animation: slideDown 0.3s ease;
+    border: 1px solid #F1F5F9;
+    white-space: nowrap;
+}
+
+@keyframes slideDown {
+    from {
+        transform: translate(-50%, -50px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translate(-50%, 0);
+        opacity: 1;
+    }
+}
+
+@keyframes float {
+    0% {
+        transform: translateY(0px);
+    }
+
+    50% {
+        transform: translateY(-5px);
+    }
+
+    100% {
+        transform: translateY(0px);
+    }
+}
+
+.floating-icon {
+    animation: float 3s ease-in-out infinite;
+}
+
+.progress-ring-circle {
+    transition: stroke-dashoffset 1s ease-in-out;
+    transform: rotate(-90deg);
+    transform-origin: 50% 50%;
+}
+
+/* Dark Mode Overrides */
+body.dark-mode {
+    --bg: #111827;
+    --surface: #1F2937;
+    --text-main: #F3F4F6;
+    --text-sub: #9CA3AF;
+    --primary-light: #3730A3;
+}
+
+body.dark-mode .rpg-bar-track {
+    background: #374151;
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+body.dark-mode .topic-card,
+body.dark-mode .setting-card,
+body.dark-mode .rpg-chart-card {
+    border-color: #374151;
+}
+
+body.dark-mode .flashcard-front,
+body.dark-mode .flashcard-back,
+body.dark-mode .lesson-card {
+    background: #1F2937;
+    border-color: #374151;
+}
+
+body.dark-mode .quiz-opt-btn,
+body.dark-mode .voice-option,
+body.dark-mode .setting-row {
+    background: #1F2937;
+    border-color: #374151;
+    color: #E5E7EB;
+}
+
+/* --- THỐNG KÊ MINI TAB CHỦ ĐỀ --- */
+.topic-stats-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    background: linear-gradient(135deg, #6366F1, #8B5CF6); /* Tím Pro */
+    border-radius: 16px;
+    padding: 12px 0;
+    margin-bottom: 20px;
+    color: white;
+    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.25);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Hiệu ứng ánh sáng trang trí */
+.topic-stats-bar::before {
+    content: '';
+    position: absolute;
+    top: -50%; left: -50%;
+    width: 200%; height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
+    pointer-events: none;
+}
+
+.ts-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: relative;
+    z-index: 1;
+}
+
+.ts-icon {
+    width: 40px; height: 40px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem;
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255,255,255,0.3);
+}
+
+.ts-info {
+    display: flex; flex-direction: column;
+}
+
+.ts-num {
+    font-size: 1.1rem;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 3px;
+}
+
+.ts-label {
+    font-size: 0.75rem;
+    opacity: 0.9;
+    font-weight: 500;
+}
+
+/* Vạch ngăn cách giữa */
+.ts-divider {
+    width: 1px;
+    height: 30px;
+    background: rgba(255,255,255,0.2);
+}
+
+/* --- GIAO DIỆN LƯỚI CHỦ ĐỀ (GRID LAYOUT) --- */
+.topic-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* Chia 2 cột đều nhau */
+    gap: 15px; /* Khoảng cách giữa các thẻ */
+    padding-bottom: 20px;
+}
+
+.topic-tile {
+    background: var(--surface);
+    border-radius: 20px;
+    padding: 20px 15px;
+    display: flex;
+    flex-direction: column; /* Xếp dọc: Icon trên, Chữ dưới */
+    align-items: center;     /* Căn giữa toàn bộ */
+    text-align: center;      /* Căn giữa văn bản */
+    border: 1px solid #F1F5F9;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    position: relative;
+    overflow: hidden;
+    height: 100%; /* Đảm bảo các thẻ cao bằng nhau */
+}
+
+.topic-tile:active {
+    transform: scale(0.96);
+}
+
+/* Icon to tròn, màu sắc */
+.tile-icon-box {
+    width: 60px; height: 60px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.8rem;
+    margin-bottom: 12px;
+    transition: transform 0.2s;
+}
+
+/* Tiêu đề ngắn gọn */
+.tile-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 4px;
+    line-height: 1.3;
+}
+
+/* Số lượng từ nhỏ bên dưới */
+.tile-desc {
+    font-size: 0.75rem;
+    color: var(--text-sub);
+    opacity: 0.8;
+    display: -webkit-box;
+    -webkit-line-clamp: 2; /* Chỉ hiện tối đa 2 dòng mô tả cho gọn */
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* --- THỐNG KÊ CEFR (MỚI) --- */
+
+/* 1. Thanh phân bố trình độ (Trên cùng) */
+.cefr-distribution-bar {
+    display: flex;
+    height: 8px;
+    width: 100%;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 8px;
+    background: rgba(255,255,255,0.2);
+}
+
+.cefr-seg { height: 100%; }
+.bg-easy { background-color: #10B981; } /* A1-A2: Xanh lá */
+.bg-med  { background-color: #3B82F6; } /* B1-B2: Xanh dương */
+.bg-hard { background-color: #EF4444; } /* C1-C2: Đỏ */
+
+/* 2. Nhãn Level nhỏ trên từng thẻ */
+.topic-tags {
+    display: flex;
+    gap: 5px;
+    justify-content: center;
+    margin-top: 8px;
+}
+
+.cefr-badge {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+    color: white;
+    background: #94A3B8; /* Mặc định */
+}
+
+/* 3. Số liệu thống kê chi tiết */
+.stats-row {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+}
+.stat-col {
+    text-align: center;
+}
+.stat-val { font-weight: 800; font-size: 1.1rem; }
+.stat-lbl { font-size: 0.7rem; opacity: 0.8; }
+
+/* =========================================
+   10. LEVEL LOCKING (Hiệu ứng khóa)
+   ========================================= */
+
+/* Làm mờ và xám các phần bị khóa */
+.locked-section {
+    opacity: 0.5;
+    pointer-events: auto; /* Vẫn cho phép click để hiện thông báo lỗi */
+    filter: grayscale(0.9);
+    transition: 0.3s;
+}
+
+/* Icon khóa nằm đè lên trên thẻ */
+.lock-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 3rem;
+    color: #64748B;
+    z-index: 10;
+    opacity: 0.8;
+    background: rgba(255,255,255,0.8);
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.topic-tile {
+    position: relative; /* Để lock-overlay định vị được */
+}
+
+/* Khi hover vào phần bị khóa thì sáng lên xíu */
+.locked-section .topic-tile:hover {
+    filter: grayscale(0.5);
+    opacity: 0.8;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.1); opacity: 0.8; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* Database Inspector Table */
+.db-table th {
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+.db-table td {
+    vertical-align: middle;
+}
+/* Scrollbar đẹp cho bảng */
+#db-inspector ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+#db-inspector ::-webkit-scrollbar-track {
+    background: #F1F5F9; 
+}
+#db-inspector ::-webkit-scrollbar-thumb {
+    background: #CBD5E1; 
+    border-radius: 4px;
+}
+#db-inspector ::-webkit-scrollbar-thumb:hover {
+    background: #94A3B8; 
+}
+
+/* --- DATA DASHBOARD STYLES --- */
+.dash-tab {
+    padding: 8px 16px;
+    border: none;
+    background: transparent;
+    font-weight: 600;
+    color: #64748B;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: 0.2s;
+}
+
+.dash-tab.active {
+    background: #EEF2FF;
+    color: #4F46E5;
+}
+
+.dash-card {
+    background: white;
+    border: 1px solid #E2E8F0;
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.dash-stat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px dashed #F1F5F9;
+    font-size: 0.9rem;
+    color: #475569;
+}
+
+.dash-stat-row:last-child {
+    border-bottom: none;
+}
+
+.code-viewer {
+    background: #1E293B;
+    color: #A5F3FC; /* Màu Cyan nhạt giống editor */
+    padding: 15px;
+    border-radius: 10px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.8rem;
+    white-space: pre-wrap;
+    overflow-x: auto;
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid #334155;
+}
+
+/* --- SUPER DASHBOARD STYLES --- */
+.dash-tab {
+    background: transparent;
+    border: none;
+    padding: 15px 5px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #64748B;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.dash-tab:hover { color: #1E293B; }
+.dash-tab.active {
+    color: #6366F1;
+    border-bottom-color: #6366F1;
+}
+
+/* Hiệu ứng hover cho dòng trong bảng */
+#db-grid-body > div:hover {
+    background-color: #F8FAFC;
+}
+
+.code-viewer {
+    background: #1E293B;
+    color: #A5F3FC;
+    padding: 15px;
+    border-radius: 8px;
+    font-family: 'Consolas', monospace;
+    font-size: 0.8rem;
+    white-space: pre-wrap;
+    overflow: auto;
+}

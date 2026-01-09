@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Smart Vocab Pro</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="stylesheet" href="css/style.css">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+</head>
+
+<body>
+
+    <header
+        style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background-color: var(--surface); position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+        <button id="btn-back"
+            style="visibility:hidden; background:none; border:none; font-size: 1.2rem; cursor: pointer; color: var(--text-main);">
+            <i class="fa-solid fa-arrow-left"></i>
+        </button>
+
+        <h1 id="header-title" style="font-size: 1.2rem; margin: 0; color: var(--text-main);">Smart Vocab Pro</h1>
+
+        <button onclick="App.openDictionary()" title="Tra từ điển nhanh"
+            style="background:#F3E8FF; border:none; width:40px; height:40px; border-radius:12px; color:#8B5CF6; font-size:1.1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:0.2s; box-shadow: 0 2px 5px rgba(139, 92, 246, 0.15);">
+            <div style="position:relative">
+                <i class="fa-solid fa-book-open" style="font-size:0.9rem"></i>
+                <i class="fa-solid fa-magnifying-glass"
+                    style="position:absolute; bottom:-4px; right:-6px; font-size:0.7rem; background:#F3E8FF; padding:1px; border-radius:50%"></i>
+            </div>
+        </button>
+    </header>
+
+    <main id="app-view">
+        <div id="topics-container" class="topics-grid"></div>
+    </main>
+
+    <nav class="bottom-nav">
+        <div class="nav-item active" onclick="App.switchTab('home')">
+            <i class="fa-solid fa-house"></i>
+            <span>Home</span>
+        </div>
+        <div class="nav-item" onclick="App.switchTab('topics')">
+            <i class="fa-solid fa-layer-group"></i>
+            <span>Chủ đề</span>
+        </div>
+        <div class="nav-item" onclick="App.switchTab('review')">
+            <i class="fa-solid fa-brain"></i>
+            <span>Ôn tập</span>
+        </div>
+        <div class="nav-item" onclick="App.switchTab('collection')">
+            <i class="fa-solid fa-book-journal-whills"></i> <span>Sổ tay</span>
+        </div>
+        <div class="nav-item" onclick="App.switchTab('profile')">
+            <i class="fa-solid fa-user"></i>
+            <span>Cài đặt</span>
+        </div>
+    </nav>
+
+    <div id="dict-modal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 450px;">
+            <div style="text-align:center; margin-bottom:20px">
+                <div
+                    style="width:60px; height:60px; background:#F3E8FF; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; margin-bottom:10px">
+                    <i class="fa-solid fa-book-atlas" style="font-size:1.8rem; color:#8B5CF6"></i>
+                </div>
+                <h2 style="margin:0; color:#4C1D95">Siêu Từ Điển</h2>
+                <div style="font-size:0.85rem; color:#6B7280; margin-top:5px">
+                    Dữ liệu chuẩn từ <b style="color:#1D4ED8">Cambridge</b> & <b style="color:#059669">Oxford</b>
+                </div>
+            </div>
+
+            <p style="color:var(--text-sub); margin-top:0; font-size:0.9rem; font-weight:600">Nhập từ vựng:</p>
+            <input type="text" id="dict-input" class="modal-input" placeholder="Ví dụ: serendipity..."
+                autocomplete="off" onkeypress="if(event.key==='Enter') App.searchDict()"
+                style="font-size:1.1rem; padding:12px;">
+
+            <div class="modal-actions">
+                <button class="btn-modal btn-cancel" onclick="App.closeModal('dict-modal')">Để sau</button>
+                <button class="btn-modal btn-save" onclick="App.searchDict()"
+                    style="background:linear-gradient(135deg, #8B5CF6, #6D28D9); box-shadow: 0 4px 10px rgba(139, 92, 246, 0.3);">
+                    <i class="fa-solid fa-search"></i> Tra cứu ngay
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="voice-sheet-overlay" class="voice-sheet-overlay" onclick="if(event.target===this) App.closeVoiceSheet()">
+        <div class="voice-sheet">
+            <div class="voice-sheet-title">Chọn giọng đọc ưu tiên</div>
+
+            <div class="voice-option" onclick="App.setVoiceNew('en-US')">
+                <div class="v-info">
+                    <span class="v-flag">🇺🇸</span>
+                    <div>
+                        <div class="v-name">Anh - Mỹ (US)</div>
+                        <div class="v-desc">Giọng phổ biến nhất</div>
+                    </div>
+                </div>
+                <i class="fa-solid fa-circle-check v-check"></i>
+            </div>
+
+            <div class="voice-option" onclick="App.setVoiceNew('en-GB')">
+                <div class="v-info">
+                    <span class="v-flag">🇬🇧</span>
+                    <div>
+                        <div class="v-name">Anh - Anh (UK)</div>
+                        <div class="v-desc">Giọng chuẩn hoàng gia</div>
+                    </div>
+                </div>
+                <i class="fa-solid fa-circle-check v-check"></i>
+            </div>
+
+            <div class="voice-option" onclick="App.setVoiceNew('ja-JP')">
+                <div class="v-info">
+                    <span class="v-flag">🇯🇵</span>
+                    <div>
+                        <div class="v-name">Anh - Nhật</div>
+                        <div class="v-desc">Phong cách thú vị</div>
+                    </div>
+                </div>
+                <i class="fa-solid fa-circle-check v-check"></i>
+            </div>
+        </div>
+    </div>
+
+    <div id="name-modal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-title">Đổi tên hiển thị</div>
+            <input type="text" id="input-new-name" class="modal-input" placeholder="Nhập tên..." autocomplete="off">
+            <div class="modal-actions">
+                <button class="btn-modal btn-cancel" onclick="App.closeModal('name-modal')">Hủy</button>
+                <button class="btn-modal btn-save" onclick="App.saveNewName()">Lưu</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="avatar-modal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-title">Chọn Avatar của bạn</div>
+            <div id="avatar-grid-content" class="avatar-grid"></div>
+            <button class="btn-modal btn-cancel" onclick="App.closeModal('avatar-modal')"
+                style="width:100%">Đóng</button>
+        </div>
+    </div>
+
+    <div id="export-modal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-title">Xuất PDF</div>
+            <div class="export-options" id="export-list"></div>
+            <div class="modal-actions">
+                <button class="btn-modal btn-cancel" onclick="App.closeModal('export-modal')">Đóng</button>
+                <button class="btn-modal btn-save" onclick="App.exportPDF()">Tải về</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="result-sheet-container"></div>
+    <div id="word-detail-modal" class="word-detail-modal" onclick="if(event.target===this) App.closeDetailModal()">
+        <div class="detail-card" id="detail-card-content"></div>
+    </div>
+
+    <script src="js/algorithm.js"></script>
+    <script src="js/app.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,35 @@
+[
+  {
+    "id": "topic_travel_core",
+    "name": "Travel Vocabulary",
+    "words": [
+      {
+        "id": "w_trv_001",
+        "en": "Passport",
+        "vi": "Hộ chiếu",
+        "ipa": "/ˈpæs.pɔːrt/",
+        "type": "(n)",
+        "level": "A1",
+        "example": "I need to renew my passport."
+      },
+      {
+        "id": "w_trv_002",
+        "en": "Itinerary",
+        "vi": "Lịch trình",
+        "ipa": "/aɪˈtɪn.ə.rer.i/",
+        "type": "(n)",
+        "level": "C1",
+        "example": "Send me your itinerary."
+      },
+      {
+        "id": "w_trv_003",
+        "en": "Delay",
+        "vi": "Sự trì hoãn",
+        "ipa": "/dɪˈleɪ/",
+        "type": "(n/v)",
+        "level": "B1",
+        "example": "The flight was delayed."
+      }
+    ]
+  }
+]
