@@ -12,50 +12,68 @@ const App = {
     activeGroup: null,
     currentFilter: 'all',
 
-    // --- 1. CORE: KHỞI TẠO (LAZY LOAD THÔNG MINH) ---
+    // [FIX] Khởi tạo với cấu trúc Data mới (Topic -> Word IDs -> Word Files)
     async init() {
         try {
-            console.log("🚀 Đang khởi tạo ứng dụng (Chế độ Tiết kiệm)...");
+            console.log("🚀 Đang khởi tạo ứng dụng (New Data Structure)...");
             const DATA_PATH = './data';
 
-            // 1. Tải thông tin phiên bản
-            try {
-                const verRes = await fetch(`${DATA_PATH}/version.json?v=${Date.now()}`);
-                this.info = verRes.ok ? await verRes.json() : { version: '1.0.0' };
-            } catch (e) { this.info = { version: '1.0.0' }; }
+            // 1. Tải Menu Chủ đề (Topics)
+            // Cấu trúc mới: {"Technology": ["tech_001", ...], "Business": [...]}
+            const topicsRes = await fetch(`${DATA_PATH}/topics.json?v=${Date.now()}`);
+            if (!topicsRes.ok) throw new Error("Không tìm thấy data/topics.json");
+            
+            const rawTopics = await topicsRes.json();
 
-            // 2. Tải Menu Gói (Chỉ tải cái vỏ, chưa tải ruột)
-            const indexResponse = await fetch(`${DATA_PATH}/topics_index.json?v=${Date.now()}`);
-            if (!indexResponse.ok) throw new Error("Không tìm thấy file topics_index.json");
-            this.packList = await indexResponse.json();
+            // 2. Chuyển đổi format Topic sang format PackList để App hiểu
+            // Tự động gán Icon và Màu sắc vì file topics.json mới không có metadata này
+            this.packList = Object.keys(rawTopics).map((key, index) => {
+                const count = rawTopics[key].length;
+                return {
+                    id: key,                // Dùng tên topic làm ID luôn (vd: "Technology")
+                    name: key,              // Tên hiển thị
+                    word_ids: rawTopics[key], // Lưu danh sách ID để dùng khi load
+                    count: count,
+                    // Random metadata giả lập (vì data mới thiếu cái này)
+                    icon: this.getIconForTopic(key), 
+                    color: this.getColorForTopic(key),
+                    level: "Mixed"          // Data mới không ghi level của Topic
+                };
+            });
 
-            // 3. [THAY ĐỔI LỚN] KHÔNG TẢI TOÀN BỘ DỮ LIỆU NỮA!
-            // Thay vào đó: Chỉ tải lại những gói mà người dùng ĐÃ TỪNG HỌC (để hiện Sổ tay/Ôn tập)
-            this.data = []; // Khởi đầu rỗng tuếch -> App mở cực nhanh
+            // 3. Khôi phục tiến độ (Logic giữ nguyên)
+            this.data = []; 
             await this.preloadLearnedPacks();
 
-            // 4. Thiết lập giao diện & Điều hướng
+            // 4. Setup giao diện
             if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark-mode');
-
-            // Chèn CSS cho hiệu ứng khóa (Level Locking)
-            const style = document.createElement('style');
-            style.innerHTML = `
-                .locked-section { opacity: 0.6; pointer-events: none; filter: grayscale(0.8); }
-                .lock-overlay { position: absolute; top: 10px; right: 10px; font-size: 1.2rem; color: #64748B; z-index: 10; }
-                .topic-tile { position: relative; }
-            `;
-            document.head.appendChild(style);
-
-            // Điều hướng
             const hasLearned = Object.keys(this.userProgress).length > 0;
             this.switchTab(hasLearned ? 'home' : 'topics');
-
             this.checkUpdate();
 
         } catch (error) {
             console.error(error);
             alert("Lỗi khởi tạo: " + error.message);
         }
+    },
+
+    // Hàm phụ trợ để sinh Icon/Màu cho đẹp (Vì data mới không có)
+    getIconForTopic(name) {
+        const map = {
+            'Technology': 'fa-microchip', 'Daily Life': 'fa-sun', 'Business': 'fa-briefcase',
+            'Environment': 'fa-leaf', 'Travel': 'fa-plane', 'Education': 'fa-graduation-cap',
+            'Health': 'fa-heart-pulse', 'Food': 'fa-utensils', 'Sports': 'fa-futbol',
+            'Entertainment': 'fa-film', 'Fashion': 'fa-shirt', 'Core': 'fa-star',
+            'Phrasal Verbs': 'fa-code-branch', 'Idioms': 'fa-comments'
+        };
+        return map[name] || 'fa-folder-open';
+    },
+    
+    getColorForTopic(name) {
+        const colors = ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4'];
+        let hash = 0;
+        for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+        return colors[Math.abs(hash) % colors.length];
     },
 
     // --- HÀM TẢI DỮ LIỆU ĐÃ HỌC (ĐỂ PHỤC VỤ ÔN TẬP/SỔ TAY) ---
@@ -247,181 +265,161 @@ const App = {
 
 
 
-    // --- 3. HIỂN THỊ DANH SÁCH GÓI (CÓ KHÓA LEVEL & PHÂN TẦNG) ---
+    // --- RENDER DANH SÁCH CHỦ ĐỀ (FIX CHO DATA MỚI) ---
     renderPackList() {
         const container = document.getElementById('topics-container');
         if (!container) return;
-        document.getElementById('header-title').innerText = "Lộ trình học";
-
-        // 1. Lấy Level hiện tại của người dùng
-        const userStats = this.calculateUserLevel(); // Trả về { level: 'A1', ... }
-        // Quy đổi Level ra điểm số để dễ so sánh (0->5)
-        const levelScore = { 'A0': 0, 'A1': 1, 'A2': 2, 'B1': 3, 'B2': 4, 'C1': 5, 'C2': 6 };
-        const userScore = levelScore[userStats.level] || 0;
-
         
-        // [SỬA] Logic mới: Đọc Level A1/B1 từ file data
-        const getPackTier = (pack) => {
-            // 1. Nếu có Level (data mới)
-            if (pack.level) {
-                const lvl = String(pack.level).toUpperCase();
-                if (['A0','A1','A2','BEGINNER'].some(x => lvl.includes(x))) return 'easy';
-                if (['B1','B2','INTERMEDIATE'].some(x => lvl.includes(x))) return 'medium';
-                if (['C1','C2','ADVANCED'].some(x => lvl.includes(x))) return 'hard';
-            }
-            // 2. Nếu là data cũ
-            return 'easy';
-        };
-        // 3. Phân nhóm các gói từ vựng
+        container.innerHTML = '';
+        document.getElementById('header-title').innerText = "Thư viện Chủ đề";
+
+        // 1. Tạo nhóm hiển thị (Gom tất cả vào một nhóm chung vì Data mới không chia cấp độ)
         const groups = {
-            easy: { title: "🌱 Khởi động (A1-A2)", packs: [], color: "#10B981", unlockScore: 0, desc: "Dành cho người mới bắt đầu" },
-            medium: { title: "🚀 Tăng tốc (B1-B2)", packs: [], color: "#3B82F6", unlockScore: 2, desc: "Cần đạt A2 để mở khóa" }, // Cần xong A2 mới mở
-            hard: { title: "🔥 Về đích (C1-C2)", packs: [], color: "#F59E0B", unlockScore: 4, desc: "Cần đạt B2 để mở khóa" }     // Cần xong B2 mới mở
+            library: { 
+                title: "📚 Danh sách chủ đề", 
+                packs: [], 
+                color: "#4F46E5", 
+                desc: "Tất cả bộ từ vựng" 
+            }
         };
 
-        // Phân loại từng gói vào nhóm tương ứng
+        // 2. Phân loại gói
+        if (!this.packList || this.packList.length === 0) {
+            container.innerHTML = `
+                <div style="text-align:center; padding:40px; color:#64748B">
+                    <i class="fa-solid fa-box-open" style="font-size:3rem; margin-bottom:15px; opacity:0.5"></i>
+                    <div>Chưa có dữ liệu. Hãy kiểm tra file data/topics.json</div>
+                </div>`;
+            return;
+        }
+
         this.packList.forEach(pack => {
-            const tier = getPackTier(pack);
-            groups[tier].packs.push(pack);
+            groups.library.packs.push(pack);
         });
 
-        // 4. Render HTML từng nhóm
-        let html = '';
+        // 3. Render giao diện
+        Object.values(groups).forEach(group => {
+            if (group.packs.length === 0) return;
 
-        Object.keys(groups).forEach(key => {
-            const group = groups[key];
-            if (group.packs.length === 0) return; // Nếu nhóm rỗng thì bỏ qua
-
-            // Kiểm tra có được mở khóa không?
-            const isUnlocked = userScore >= group.unlockScore;
-
-            // Class CSS để làm mờ nếu bị khóa
-            const lockClass = isUnlocked ? '' : 'locked-section';
-
-            // Icon khóa và dòng chữ cảnh báo
-            const headerLockInfo = isUnlocked ? '' : `<span style="font-size:0.8rem; background:#F1F5F9; padding:4px 8px; border-radius:6px; color:#64748B; margin-left:10px"><i class="fa-solid fa-lock"></i> ${group.desc}</span>`;
-
-            // Tiêu đề nhóm (Ví dụ: Khởi động)
-            html += `
-                <div style="margin: 30px 0 15px 0; display:flex; align-items:center; flex-wrap:wrap; gap:5px; color:var(--text-main); border-bottom: 2px solid ${group.color}20; padding-bottom:8px">
-                    <h3 style="margin:0; font-size:1.1rem; color:${group.color}">${group.title}</h3>
-                    ${headerLockInfo}
-                </div>
-                <div class="topic-grid ${lockClass}">
+            // Tạo tiêu đề nhóm
+            const groupSection = document.createElement('div');
+            groupSection.className = 'topic-group';
+            groupSection.innerHTML = `
+                <h3 style="color:${group.color}; margin: 15px 0 15px 5px; display:flex; align-items:center; gap:10px; font-size:1.1rem">
+                    ${group.title} 
+                    <span style="font-size:0.85rem; color:#94a3b8; font-weight:normal; background:#F1F5F9; padding:2px 8px; border-radius:12px">
+                        ${group.packs.length} gói
+                    </span>
+                </h3>
+                <div class="topic-grid"></div>
             `;
 
-            // Danh sách các gói trong nhóm
-            html += group.packs.map(pack => {
-                // Nhãn Level (Ví dụ: [A1-A2])
-                let badges = '';
-                if (pack.cefr_stats) {
-                    const levels = [];
-                    if ((pack.cefr_stats.A1 || 0) + (pack.cefr_stats.A2 || 0) > 0) levels.push(`<span class="cefr-badge bg-easy">A1-A2</span>`);
-                    if ((pack.cefr_stats.B1 || 0) + (pack.cefr_stats.B2 || 0) > 0) levels.push(`<span class="cefr-badge bg-med">B1-B2</span>`);
-                    if ((pack.cefr_stats.C1 || 0) + (pack.cefr_stats.C2 || 0) > 0) levels.push(`<span class="cefr-badge bg-hard">C1-C2</span>`);
-                    badges = `<div class="topic-tags">${levels.join('')}</div>`;
-                }
+            const grid = groupSection.querySelector('.topic-grid');
 
-                // Xử lý sự kiện click:
-                // - Nếu mở: Vào học bình thường
-                // - Nếu khóa: Hiện thông báo Toast
-                const clickAction = isUnlocked
-                    ? `App.loadPack('${pack.id}')`
-                    : `App.showToast('🔒 Bạn cần đạt trình độ ${group.desc.replace('Cần đạt ', '')}!', 'error')`;
+            // Render từng thẻ bài học
+            group.packs.forEach(pack => {
+                // Tính % tiến độ người dùng
+                const userProgress = this.userProgress[pack.id] || {};
+                const learnedCount = userProgress.learned || 0;
+                const totalCount = pack.count || 0;
+                const percent = totalCount > 0 ? Math.round((learnedCount / totalCount) * 100) : 0;
+                
+                // Xác định màu sắc (Fallback nếu thiếu)
+                const packColor = pack.color || group.color;
+                const packIcon = pack.icon || 'fa-book';
 
-                return `
-                <div class="topic-tile" onclick="${clickAction}">
-                    ${!isUnlocked ? '<div class="lock-overlay"><i class="fa-solid fa-lock"></i></div>' : ''}
-                    <div class="tile-icon-box" style="background:${pack.color}15; color:${pack.color}">
-                        <i class="fa-solid ${pack.icon}"></i>
+                const card = document.createElement('div');
+                card.className = 'topic-card';
+                card.onclick = () => this.loadPack(pack.id); // Gọi hàm loadPack khi bấm
+                
+                card.innerHTML = `
+                    <div class="topic-icon" style="background:${packColor}15; color:${packColor}">
+                        <i class="fa-solid ${packIcon}"></i>
                     </div>
-                    <div class="tile-title">${pack.name}</div>
-                    <div class="tile-desc">${pack.desc || 'Học ngay'}</div>
-                    <div style="margin-top:8px; font-size:0.8rem; color:var(--text-sub); font-weight:600">
-                        ${pack.count || 0} từ
+                    <div class="topic-info">
+                        <div class="topic-name">${pack.name}</div>
+                        <div class="topic-meta" style="display:flex; justify-content:space-between; font-size:0.8rem; color:#64748B; margin-bottom:6px">
+                            <span><i class="fa-solid fa-layer-group"></i> ${totalCount} từ</span>
+                            ${percent > 0 ? `<span style="color:#10B981; font-weight:600">${percent}%</span>` : ''}
+                        </div>
+                        <div class="progress-bar-bg" style="height:6px; background:#F1F5F9; border-radius:10px; overflow:hidden">
+                            <div class="progress-bar-fill" style="width:${percent}%; background:${packColor}; height:100%; border-radius:10px; transition:width 0.5s"></div>
+                        </div>
                     </div>
-                    ${badges}
-                </div>
                 `;
-            }).join('');
+                grid.appendChild(card);
+            });
 
-            html += `</div>`; // Đóng grid
+            container.appendChild(groupSection);
         });
-
-        // 5. Render vào container chính
-        container.innerHTML = `
-            <div style="padding: 20px;">
-                <div style="background:var(--card-bg); padding:15px; border-radius:16px; margin-bottom:10px; border:1px solid #E2E8F0; display:flex; align-items:center; gap:15px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
-                    <div style="width:50px; height:50px; background:linear-gradient(135deg, #4F46E5, #8B5CF6); border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; color:white; font-size:1.4rem; box-shadow: 0 4px 10px rgba(79, 70, 229, 0.4);">
-                        ${userStats.level}
-                    </div>
-                    <div>
-                        <div style="font-size:0.85rem; color:var(--text-sub); text-transform:uppercase; letter-spacing:0.5px">Trình độ thực lực</div>
-                        <div style="font-weight:800; color:var(--text-main); font-size:1.1rem">${userStats.title}</div>
-                    </div>
-                    <div style="margin-left:auto; font-size:1.2rem; color:#CBD5E1">
-                        <i class="fa-solid fa-medal"></i>
-                    </div>
-                </div>
-
-                ${html}
-            </div>
-            <div style="height:60px"></div>
-        `;
     },
-
-    // [SỬA] Hàm tải bài học (An toàn 100%)
+    // [FIX] Hàm tải bài học cho cấu trúc phân tán (Distributed Data)
     async loadPack(packId) {
+        // packId ở đây chính là Tên Topic (vd: "Technology")
         const packInfo = this.packList.find(p => p.id === packId);
         if (!packInfo) return this.showToast("Lỗi: Không tìm thấy gói này!", "error");
 
-        this.showToast(`📂 Đang mở: ${packInfo.name}...`, "info");
+        this.showToast(`⏳ Đang tải ${packInfo.count} từ vựng...`, "info");
 
         try {
-            // 1. Tìm đường dẫn file (Ưu tiên cấu trúc mới)
-            const filePath = packInfo.file ? `./data/${packInfo.file}` : `./data/packs/${packId}.json`;
+            // 1. Lấy danh sách ID từ vựng
+            const wordIds = packInfo.word_ids; 
+            if (!wordIds || wordIds.length === 0) throw new Error("Gói này rỗng!");
 
-            // 2. Tải file
-            const res = await fetch(`${filePath}?v=${Date.now()}`);
-            if (!res.ok) throw new Error("Không đọc được file data");
+            // 2. Tải song song tất cả file từ vựng con (data/words/xyz.json)
+            // Limit: Tải từng cụm 50 file để tránh quá tải trình duyệt nếu gói quá lớn
+            const wordsData = [];
+            const chunkSize = 50;
             
-            const packData = await res.json();
-
-            // 3. Xử lý dữ liệu (Chống lỗi flatMap)
-            let newWords = [];
-            
-            // Trường hợp 1: Data mới (Mảng lồng: [{words: [...]}, {words: [...]}])
-            if (Array.isArray(packData) && packData[0] && packData[0].words) {
-                newWords = packData.flatMap(t => t.words);
-                this.currentTopics = packData; // Lưu lại để dùng cho màn hình danh sách topic
-            } 
-            // Trường hợp 2: Data cũ hoặc Data đơn (Object: {words: [...]})
-            else if (packData.words) {
-                newWords = packData.words;
-                this.currentTopics = [packData];
-            }
-            // Trường hợp 3: Mảng phẳng ([{en: 'hi', vi: 'chào'}])
-            else if (Array.isArray(packData)) {
-                newWords = packData;
-                this.currentTopics = [{ id: packId, name: packInfo.name, icon: packInfo.icon, words: newWords }];
+            for (let i = 0; i < wordIds.length; i += chunkSize) {
+                const chunk = wordIds.slice(i, i + chunkSize);
+                const promises = chunk.map(id => 
+                    fetch(`./data/words/${id}.json`)
+                        .then(res => {
+                            if (!res.ok) return null; // Bỏ qua file lỗi
+                            return res.json();
+                        })
+                        .catch(err => null)
+                );
+                
+                const results = await Promise.all(promises);
+                wordsData.push(...results.filter(w => w !== null));
             }
 
-            if (!newWords || newWords.length === 0) throw new Error("Gói này rỗng!");
+            // 3. Chuẩn hóa dữ liệu (Map field mới sang field cũ của App)
+            // File mới: { word: "...", meaning: "..." }
+            // App cần: { en: "...", vi: "..." }
+            const mappedWords = wordsData.map(w => ({
+                id: w.id,
+                en: w.word,          // Map 'word' -> 'en'
+                vi: w.meaning,       // Map 'meaning' -> 'vi'
+                type: w.pos,         // Map 'pos' -> 'type'
+                ipa: w.ipa,
+                example: w.example?.en || "", // Lấy ví dụ tiếng Anh
+                example_vi: w.example?.vi || "",
+                level: w.level
+            }));
 
-            // 4. Nạp vào RAM
+            // 4. Nạp vào bộ nhớ App
             const existingIds = new Set(this.data.map(w => w.id));
-            const uniqueNewWords = newWords.filter(w => !existingIds.has(w.id));
+            const uniqueNewWords = mappedWords.filter(w => !existingIds.has(w.id));
             this.data = [...this.data, ...uniqueNewWords];
 
-            // 5. Chuyển cảnh
+            // 5. Setup dữ liệu cho màn hình danh sách
+            this.currentTopics = [{
+                id: packId,
+                name: packInfo.name,
+                icon: packInfo.icon,
+                words: mappedWords
+            }];
+
             this.renderTopicsOfPack(packInfo);
 
         } catch (e) {
             console.error(e);
-            this.showToast("Lỗi: " + e.message, "error");
+            this.showToast("Lỗi tải dữ liệu: " + e.message, "error");
         }
     },
-
     // --- 5. HIỂN THỊ CÁC CHỦ ĐỀ CON TRONG GÓI ---
     renderTopicsOfPack(pack) {
         const container = document.getElementById('topics-container');
