@@ -1434,31 +1434,74 @@ const App = {
         document.getElementById('export-list').innerHTML = html;
         document.getElementById('export-modal').classList.add('show');
     },
+    
+    // [FIX] Xuất file PDF chuẩn cho Data mới
     exportPDF() {
-        const groups = Array.from(document.querySelectorAll('.chk-g:checked')).map(c => c.value);
-        if (groups.length === 0) return alert("Chọn ít nhất 1 chủ đề!");
+        // 1. Kiểm tra xem đang mở bài nào không
+        if (!this.currentTopics || this.currentTopics.length === 0) {
+            return this.showToast("Hãy mở một bài học trước khi xuất file!", "error");
+        }
 
-        let content = [{ text: 'Smart Vocab List', style: 'header', alignment: 'center', margin: [0, 0, 0, 20] }];
-        groups.forEach(g => {
-            content.push({ text: g, style: 'groupHeader', margin: [0, 15, 0, 5] });
-            const subs = this.data.filter(i => i.group === g);
-            subs.forEach(t => {
-                content.push({ text: `• ${t.name}`, style: 'topicHeader', margin: [0, 5, 0, 5] });
-                const body = [[{ text: 'Từ', bold: true }, { text: 'Nghĩa', bold: true }, { text: 'Ví dụ', bold: true }]];
-                t.words.forEach(w => body.push([w.en, w.vi, { text: w.example, italics: true }]));
-                content.push({ table: { widths: ['30%', '30%', '40%'], body: body }, layout: 'lightHorizontalLines', margin: [0, 0, 0, 10] });
-            });
-        });
+        this.showToast("⏳ Đang tạo file PDF...", "info");
 
-        pdfMake.createPdf({
-            content: content,
+        // 2. Lấy danh sách từ vựng hiện tại
+        // Data mới: [{ words: [...] }] hoặc [{ id:..., words: [...] }]
+        let wordsToExport = [];
+        if (Array.isArray(this.currentTopics)) {
+            wordsToExport = this.currentTopics.flatMap(t => t.words || []);
+        } else if (this.currentTopics.words) {
+            wordsToExport = this.currentTopics.words;
+        }
+
+        if (wordsToExport.length === 0) return this.showToast("Không có từ vựng nào để xuất!", "error");
+
+        // 3. Cấu hình nội dung PDF
+        const docDefinition = {
+            content: [
+                { text: `Danh sách từ vựng: ${this.currentTopics[0]?.name || 'Topic'}`, style: 'header' },
+                { text: `Tổng số từ: ${wordsToExport.length}`, style: 'subheader' },
+                {
+                    style: 'tableExample',
+                    table: {
+                        headerRows: 1,
+                        widths: ['auto', '*', '*', 'auto'],
+                        body: [
+                            [
+                                { text: 'STT', style: 'tableHeader' }, 
+                                { text: 'Từ vựng (Word)', style: 'tableHeader' }, 
+                                { text: 'Nghĩa (Meaning)', style: 'tableHeader' }, 
+                                { text: 'Loại', style: 'tableHeader' }
+                            ],
+                            // Map dữ liệu mới vào bảng
+                            ...wordsToExport.map((w, index) => [
+                                index + 1,
+                                { text: w.en || "", bold: true }, // Data mới dùng w.en
+                                w.vi || "",                       // Data mới dùng w.vi
+                                { text: w.type || "", italics: true, color: 'gray' }
+                            ])
+                        ]
+                    },
+                    layout: 'lightHorizontalLines'
+                }
+            ],
             styles: {
-                header: { fontSize: 22, bold: true, color: '#4F46E5' },
-                groupHeader: { fontSize: 16, bold: true, color: '#DC2626' },
-                topicHeader: { fontSize: 13, bold: true, color: '#059669' }
-            }
-        }).download(`VocabList_${Date.now()}.pdf`);
-        this.closeModal('export-modal');
+                header: { fontSize: 18, bold: true, margin: [0, 0, 0, 10], color: '#4F46E5' },
+                subheader: { fontSize: 14, bold: true, margin: [0, 0, 0, 20], color: '#64748B' },
+                tableHeader: { bold: true, fontSize: 13, color: 'black', fillColor: '#F1F5F9' },
+                tableExample: { margin: [0, 5, 0, 15] }
+            },
+            defaultStyle: { font: 'Roboto' } // Dùng font mặc định của pdfmake
+        };
+
+        // 4. Tạo và tải file
+        try {
+            pdfMake.createPdf(docDefinition).download(`Vocab_${this.currentTopics[0]?.id || 'list'}.pdf`);
+            this.showToast("✅ Đã xuất file PDF thành công!", "success");
+            this.closeModal('export-modal'); // Đóng modal nếu có
+        } catch (e) {
+            console.error(e);
+            this.showToast("Lỗi tạo PDF: " + e.message, "error");
+        }
     },
 
     // --- LOGIC THAY ĐỔI AVATAR ---
