@@ -607,6 +607,17 @@ const App = {
                 <i class="fa-solid fa-chevron-right" style="color:#CBD5E1"></i>
             </div>
 
+            <div onclick="App.openSpeakingTool()" style="background:white; padding:18px; border-radius:16px; box-shadow: var(--card-shadow); cursor:pointer; display:flex; align-items:center; gap:15px; border:1px solid #F1F5F9; margin-top:15px">
+                <div style="width:45px; height:45px; background:#FCE7F3; border-radius:10px; display:flex; align-items:center; justify-content:center; color:#DB2777; font-size:1.2rem;">
+                    <i class="fa-solid fa-microphone-lines"></i>
+                </div>
+                <div style="flex:1;">
+                    <div style="font-weight:700; color:var(--text-main);">Luyện nói (Speaking)</div>
+                    <div style="font-size:0.8rem; color:var(--text-sub);">Thực hành giao tiếp 1-1</div>
+                </div>
+                <i class="fa-solid fa-arrow-up-right-from-square" style="color:#CBD5E1"></i>
+            </div>
+
             <div style="height:80px"></div>
         `;
     },
@@ -2067,6 +2078,16 @@ const App = {
         const text = document.getElementById(`hidden-json-${filename}`).value;
         navigator.clipboard.writeText(text);
         this.showToast("Đã copy toàn bộ JSON vào bộ nhớ đệm!", "success");
+    },
+
+    // --- TÍNH NĂNG: MỞ WEB LUYỆN NÓI ---
+    openSpeakingTool() {
+        // Link web luyện nói bạn muốn (Free4Talk, Elsa, v.v...)
+        const targetUrl = "https://english-speaking-app.pages.dev/"; 
+        
+        if(confirm("Bạn có muốn mở trang web luyện nói do Tiến Rose phát triển không")) {
+            window.open(targetUrl, '_blank');
+        }
     },
 
 };
