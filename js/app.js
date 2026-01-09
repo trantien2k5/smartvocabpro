@@ -12,50 +12,73 @@ const App = {
     activeGroup: null,
     currentFilter: 'all',
 
-    // [FIX] Khởi tạo với cấu trúc Data mới (Topic -> Word IDs -> Word Files)
+    /// --- 1. CORE: KHỞI TẠO (ĐỒNG BỘ DATA MỚI) ---
     async init() {
         try {
-            console.log("🚀 Đang khởi tạo ứng dụng (New Data Structure)...");
+            console.log("🚀 Đang khởi tạo ứng dụng...");
             const DATA_PATH = './data';
 
-            // 1. Tải Menu Chủ đề (Topics)
-            // Cấu trúc mới: {"Technology": ["tech_001", ...], "Business": [...]}
-            const topicsRes = await fetch(`${DATA_PATH}/topics.json?v=${Date.now()}`);
-            if (!topicsRes.ok) throw new Error("Không tìm thấy data/topics.json");
+            // 1. Tải dữ liệu cấu hình song song (Topics & Levels)
+            const [topicsRes, levelsRes] = await Promise.all([
+                fetch(`${DATA_PATH}/topics.json?v=${Date.now()}`),
+                fetch(`${DATA_PATH}/levels.json?v=${Date.now()}`)
+            ]);
+
+            if (!topicsRes.ok) throw new Error("Thiếu file data/topics.json");
             
             const rawTopics = await topicsRes.json();
+            const rawLevels = levelsRes.ok ? await levelsRes.json() : {}; // Level là tùy chọn
 
-            // 2. Chuyển đổi format Topic sang format PackList để App hiểu
-            // Tự động gán Icon và Màu sắc vì file topics.json mới không có metadata này
-            this.packList = Object.keys(rawTopics).map((key, index) => {
-                const count = rawTopics[key].length;
+            // 2. Xử lý Mapping Level cho từng từ (để dùng sau này)
+            // Biến đổi { "B1": ["tech_001"] } thành { "tech_001": "B1" } cho dễ tra cứu
+            this.wordLevelMap = {};
+            Object.keys(rawLevels).forEach(lvl => {
+                rawLevels[lvl].forEach(wid => this.wordLevelMap[wid] = lvl);
+            });
+
+            // 3. Xây dựng danh sách Gói bài học (PackList)
+            this.packList = Object.keys(rawTopics).map(key => {
+                const wordIds = rawTopics[key];
+                
+                // Thuật toán: Tự động xác định Level của gói
+                // Đếm xem trong gói này có bao nhiêu từ A1, B1... Level nào nhiều nhất thì gán cho gói.
+                const levelCounts = {};
+                wordIds.forEach(id => {
+                    const l = this.wordLevelMap[id] || 'Unk';
+                    levelCounts[l] = (levelCounts[l] || 0) + 1;
+                });
+                
+                // Tìm level phổ biến nhất (Dominant Level)
+                const dominantLevel = Object.keys(levelCounts).reduce((a, b) => levelCounts[a] > levelCounts[b] ? a : b, 'Mixed');
+
                 return {
-                    id: key,                // Dùng tên topic làm ID luôn (vd: "Technology")
+                    id: key,                // ID là tên Topic (vd: "Technology")
                     name: key,              // Tên hiển thị
-                    word_ids: rawTopics[key], // Lưu danh sách ID để dùng khi load
-                    count: count,
-                    // Random metadata giả lập (vì data mới thiếu cái này)
+                    word_ids: wordIds,      // Danh sách ID từ để tải sau
+                    count: wordIds.length,
+                    level: dominantLevel,   // Level tự động (A1, B2...)
                     icon: this.getIconForTopic(key), 
-                    color: this.getColorForTopic(key),
-                    level: "Mixed"          // Data mới không ghi level của Topic
+                    color: this.getColorForTopic(key)
                 };
             });
 
-            // 3. Khôi phục tiến độ (Logic giữ nguyên)
+            // 4. Khôi phục dữ liệu người dùng
             this.data = []; 
-            await this.preloadLearnedPacks();
+            await this.preloadLearnedPacks(); // Tải lại các từ đang học dở
 
-            // 4. Setup giao diện
+            // 5. Setup giao diện
             if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark-mode');
             const hasLearned = Object.keys(this.userProgress).length > 0;
             this.switchTab(hasLearned ? 'home' : 'topics');
-            this.checkUpdate();
+            this.renderPackList(); // Vẽ menu ngay
 
         } catch (error) {
             console.error(error);
             alert("Lỗi khởi tạo: " + error.message);
         }
     },
+
+    // (Giữ nguyên 2 hàm getIconForTopic và getColorForTopic của bạn ở dưới)
 
     // Hàm phụ trợ để sinh Icon/Màu cho đẹp (Vì data mới không có)
     getIconForTopic(name) {
@@ -76,48 +99,44 @@ const App = {
         return colors[Math.abs(hash) % colors.length];
     },
 
-    // --- HÀM TẢI DỮ LIỆU ĐÃ HỌC (ĐỂ PHỤC VỤ ÔN TẬP/SỔ TAY) ---
+    // [FIX] Khôi phục từ vựng đã học từ file rời
     async preloadLearnedPacks() {
-        // 1. Lấy danh sách ID các từ đã học
         const learnedWordIds = Object.keys(this.userProgress);
-        if (learnedWordIds.length === 0) return; // Chưa học gì thì thôi, không tải gì cả
+        if (learnedWordIds.length === 0) return;
 
-        console.log("🔄 Đang khôi phục kiến thức đã học...");
+        console.log(`📡 Đang khôi phục ${learnedWordIds.length} từ đã học...`);
 
-        // 2. Suy luận ra các gói cần tải (Dựa vào ID từ vựng)
-        // Giả định ID từ vựng có dạng: w_{topicID}_{index} (Ví dụ: w_travel_001)
-        // -> Cần tìm pack có id là "pack_{topicID}" hoặc khớp trong packList
+        // Chỉ tải những từ chưa có trong RAM
+        const idsToFetch = learnedWordIds.filter(id => !this.data.some(w => w.id === id));
+        if (idsToFetch.length === 0) return;
 
-        // Cách đơn giản: Quét ID từ -> Lấy topicID -> Tìm file tương ứng
-        const neededPacks = new Set();
+        // Tải batch tương tự loadPack
+        const chunkSize = 20;
+        const restoredWords = [];
 
-        learnedWordIds.forEach(wid => {
-            // Cắt chuỗi để lấy topicID. Vd: w_travel_001 -> travel
-            const parts = wid.split('_');
-            if (parts.length >= 2) {
-                const topicId = parts[1]; // travel
-                // Tìm xem topic này thuộc pack nào trong Menu
-                // Lưu ý: ID trong Menu là "pack_travel", ID file là "packs/pack_travel.json"
-                const pack = this.packList.find(p => p.id === `pack_${topicId}` || p.id.includes(topicId));
-                if (pack) neededPacks.add(pack);
-            }
-        });
+        for (let i = 0; i < idsToFetch.length; i += chunkSize) {
+            const chunk = idsToFetch.slice(i, i + chunkSize);
+            const promises = chunk.map(id => 
+                fetch(`./data/words/${id}.json`)
+                    .then(res => res.ok ? res.json() : null)
+                    .catch(() => null)
+            );
+            const results = await Promise.all(promises);
+            restoredWords.push(...results.filter(w => w !== null));
+        }
 
-        // 3. Tải các gói cần thiết (Chạy song song)
-        const promises = Array.from(neededPacks).map(pack =>
-            fetch(`./data/${pack.file}?v=${Date.now()}`)
-                .then(r => r.json())
-                .catch(err => {
-                    console.warn(`Không tải được gói cũ: ${pack.file}`, err);
-                    return [];
-                })
-        );
+        // Map và lưu vào RAM
+        const mapped = restoredWords.map(w => ({
+            id: w.id,
+            en: w.word,
+            vi: w.meaning_vi || w.meaning,
+            type: w.pos,
+            ipa: w.ipa,
+            example: w.example_en || (w.example ? w.example.en : ""),
+            level: w.level || ""
+        }));
 
-        const results = await Promise.all(promises);
-
-        // 4. Gộp vào bộ nhớ chính (this.data)
-        this.data = results.flat();
-        console.log(`✅ Đã khôi phục ${this.data.length} từ vựng vào bộ nhớ.`);
+        this.data = [...this.data, ...mapped];
     },
 
     // --- QUẢN LÝ MỤC TIÊU NGÀY & STREAK (DAILY GOAL) ---
@@ -353,64 +372,61 @@ const App = {
             container.appendChild(groupSection);
         });
     },
-    // [FIX] Hàm tải bài học cho cấu trúc phân tán (Distributed Data)
+    // [FIX] Hàm tải bài học từ các file word rời rạc
     async loadPack(packId) {
-        // packId ở đây chính là Tên Topic (vd: "Technology")
+        // packId lúc này chính là tên Topic (vd: "Daily Life")
         const packInfo = this.packList.find(p => p.id === packId);
         if (!packInfo) return this.showToast("Lỗi: Không tìm thấy gói này!", "error");
 
         this.showToast(`⏳ Đang tải ${packInfo.count} từ vựng...`, "info");
 
         try {
-            // 1. Lấy danh sách ID từ vựng
             const wordIds = packInfo.word_ids; 
             if (!wordIds || wordIds.length === 0) throw new Error("Gói này rỗng!");
 
-            // 2. Tải song song tất cả file từ vựng con (data/words/xyz.json)
-            // Limit: Tải từng cụm 50 file để tránh quá tải trình duyệt nếu gói quá lớn
-            const wordsData = [];
-            const chunkSize = 50;
+            // 1. Lọc ra các từ chưa có trong RAM để tải (Tránh tải lại)
+            const idsToFetch = wordIds.filter(id => !this.data.some(w => w.id === id));
             
-            for (let i = 0; i < wordIds.length; i += chunkSize) {
-                const chunk = wordIds.slice(i, i + chunkSize);
+            // 2. Tải song song (Batch fetching) - Nhanh gấp 10 lần tải tuần tự
+            // Tải mỗi lần 20 file để không bị trình duyệt chặn
+            const chunkSize = 20;
+            const newWords = [];
+
+            for (let i = 0; i < idsToFetch.length; i += chunkSize) {
+                const chunk = idsToFetch.slice(i, i + chunkSize);
                 const promises = chunk.map(id => 
                     fetch(`./data/words/${id}.json`)
-                        .then(res => {
-                            if (!res.ok) return null; // Bỏ qua file lỗi
-                            return res.json();
-                        })
-                        .catch(err => null)
+                        .then(res => res.ok ? res.json() : null)
+                        .catch(() => null)
                 );
                 
                 const results = await Promise.all(promises);
-                wordsData.push(...results.filter(w => w !== null));
+                newWords.push(...results.filter(w => w !== null));
             }
 
-            // 3. Chuẩn hóa dữ liệu (Map field mới sang field cũ của App)
-            // File mới: { word: "...", meaning: "..." }
-            // App cần: { en: "...", vi: "..." }
-            const mappedWords = wordsData.map(w => ({
+            // 3. Chuẩn hóa dữ liệu (Map field mới -> cũ)
+            const mappedNewWords = newWords.map(w => ({
                 id: w.id,
-                en: w.word,          // Map 'word' -> 'en'
-                vi: w.meaning,       // Map 'meaning' -> 'vi'
-                type: w.pos,         // Map 'pos' -> 'type'
+                en: w.word,                 // Quan trọng: map 'word' -> 'en'
+                vi: w.meaning_vi || w.meaning, // Quan trọng: map 'meaning' -> 'vi'
+                type: w.pos,
                 ipa: w.ipa,
-                example: w.example?.en || "", // Lấy ví dụ tiếng Anh
-                example_vi: w.example?.vi || "",
-                level: w.level
+                example: w.example_en || (w.example ? w.example.en : ""),
+                level: w.level || this.wordLevelMap[w.id] || ""
             }));
 
-            // 4. Nạp vào bộ nhớ App
-            const existingIds = new Set(this.data.map(w => w.id));
-            const uniqueNewWords = mappedWords.filter(w => !existingIds.has(w.id));
-            this.data = [...this.data, ...uniqueNewWords];
+            // 4. Gộp vào bộ nhớ chính
+            this.data = [...this.data, ...mappedNewWords];
 
-            // 5. Setup dữ liệu cho màn hình danh sách
+            // 5. Chuẩn bị dữ liệu để hiển thị
+            // Lấy toàn bộ từ của gói (bao gồm cả từ cũ đã tải và từ mới vừa tải)
+            const allWordsOfPack = this.data.filter(w => wordIds.includes(w.id));
+
             this.currentTopics = [{
                 id: packId,
                 name: packInfo.name,
                 icon: packInfo.icon,
-                words: mappedWords
+                words: allWordsOfPack
             }];
 
             this.renderTopicsOfPack(packInfo);
