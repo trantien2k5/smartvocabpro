@@ -259,20 +259,19 @@ const App = {
         const levelScore = { 'A0': 0, 'A1': 1, 'A2': 2, 'B1': 3, 'B2': 4, 'C1': 5, 'C2': 6 };
         const userScore = levelScore[userStats.level] || 0;
 
-        // 2. Hàm xác định độ khó của Gói (Dựa trên thống kê CEFR trong gói)
-        // Logic: Nếu gói có nhiều từ C1/C2 -> Là gói Khó.
+        
+        // [SỬA] Logic mới: Đọc Level A1/B1 từ file data
         const getPackTier = (pack) => {
-            if (!pack.cefr_stats) return 'easy'; // Mặc định dễ nếu không có số liệu
-            const s = pack.cefr_stats;
-            const easy = (s.A1 || 0) + (s.A2 || 0);
-            const med = (s.B1 || 0) + (s.B2 || 0);
-            const hard = (s.C1 || 0) + (s.C2 || 0);
-
-            if (hard > med && hard > easy) return 'hard';   // Gói Cao cấp (C1-C2)
-            if (med > easy) return 'medium';                // Gói Trung cấp (B1-B2)
-            return 'easy';                                  // Gói Cơ bản (A1-A2)
+            // 1. Nếu có Level (data mới)
+            if (pack.level) {
+                const lvl = String(pack.level).toUpperCase();
+                if (['A0','A1','A2','BEGINNER'].some(x => lvl.includes(x))) return 'easy';
+                if (['B1','B2','INTERMEDIATE'].some(x => lvl.includes(x))) return 'medium';
+                if (['C1','C2','ADVANCED'].some(x => lvl.includes(x))) return 'hard';
+            }
+            // 2. Nếu là data cũ
+            return 'easy';
         };
-
         // 3. Phân nhóm các gói từ vựng
         const groups = {
             easy: { title: "🌱 Khởi động (A1-A2)", packs: [], color: "#10B981", unlockScore: 0, desc: "Dành cho người mới bắt đầu" },
@@ -371,35 +370,55 @@ const App = {
         `;
     },
 
-    // --- HÀM TẢI GÓI BÀI HỌC (QUAN TRỌNG: CẦN THÊM VÀO) ---
+    // [SỬA] Hàm tải bài học (An toàn 100%)
     async loadPack(packId) {
-        // 1. Tìm thông tin gói
         const packInfo = this.packList.find(p => p.id === packId);
-        if (!packInfo) return this.showToast("Không tìm thấy gói này!", "error");
+        if (!packInfo) return this.showToast("Lỗi: Không tìm thấy gói này!", "error");
 
         this.showToast(`📂 Đang mở: ${packInfo.name}...`, "info");
 
         try {
-            // 2. Tải dữ liệu JSON
-            const res = await fetch(`./data/${packInfo.file}?v=${Date.now()}`);
-            if (!res.ok) throw new Error("Lỗi tải file data");
+            // 1. Tìm đường dẫn file (Ưu tiên cấu trúc mới)
+            const filePath = packInfo.file ? `./data/${packInfo.file}` : `./data/packs/${packId}.json`;
 
+            // 2. Tải file
+            const res = await fetch(`${filePath}?v=${Date.now()}`);
+            if (!res.ok) throw new Error("Không đọc được file data");
+            
             const packData = await res.json();
 
-            // 3. Gộp từ vựng vào bộ nhớ chung (Lazy Load)
-            // Để sau này tra từ điển hoặc vào Sổ tay vẫn thấy
-            const newWords = packData.flatMap(t => t.words);
+            // 3. Xử lý dữ liệu (Chống lỗi flatMap)
+            let newWords = [];
+            
+            // Trường hợp 1: Data mới (Mảng lồng: [{words: [...]}, {words: [...]}])
+            if (Array.isArray(packData) && packData[0] && packData[0].words) {
+                newWords = packData.flatMap(t => t.words);
+                this.currentTopics = packData; // Lưu lại để dùng cho màn hình danh sách topic
+            } 
+            // Trường hợp 2: Data cũ hoặc Data đơn (Object: {words: [...]})
+            else if (packData.words) {
+                newWords = packData.words;
+                this.currentTopics = [packData];
+            }
+            // Trường hợp 3: Mảng phẳng ([{en: 'hi', vi: 'chào'}])
+            else if (Array.isArray(packData)) {
+                newWords = packData;
+                this.currentTopics = [{ id: packId, name: packInfo.name, icon: packInfo.icon, words: newWords }];
+            }
+
+            if (!newWords || newWords.length === 0) throw new Error("Gói này rỗng!");
+
+            // 4. Nạp vào RAM
             const existingIds = new Set(this.data.map(w => w.id));
             const uniqueNewWords = newWords.filter(w => !existingIds.has(w.id));
             this.data = [...this.data, ...uniqueNewWords];
 
-            // 4. Lưu dữ liệu hiện hành và chuyển cảnh
-            this.currentTopics = packData; // Lưu để hàm renderTopicsOfPack dùng
+            // 5. Chuyển cảnh
             this.renderTopicsOfPack(packInfo);
 
         } catch (e) {
             console.error(e);
-            this.showToast("Lỗi kết nối! Kiểm tra lại file JSON.", "error");
+            this.showToast("Lỗi: " + e.message, "error");
         }
     },
 
@@ -2106,87 +2125,7 @@ const App = {
             alert("Lỗi xử lý: " + e.message);
         }
     },
-    async buildScalableData(rows) {
-        const zip = new JSZip();
-        const topicsIndex = [];
-        const struct = {}; 
-
-        // 1. GOM NHÓM DỮ LIỆU (PARTITIONING)
-        // Mục tiêu: Biến danh sách phẳng thành struct[Level][Topic] = [Words]
-        rows.forEach(row => {
-            // Chuẩn hóa key: Xóa khoảng trắng, về chữ thường
-            const r = {};
-            Object.keys(row).forEach(k => r[k.trim().toLowerCase()] = row[k]);
-
-            // Lấy Level và Topic từ CSV để làm thư mục
-            const level = (r['level'] || 'General').trim(); 
-            const topic = (r['topic'] || 'Common').trim();
-
-            if (!struct[level]) struct[level] = {};
-            if (!struct[level][topic]) struct[level][topic] = [];
-
-            // Chỉ lấy các trường cần thiết (Giảm dung lượng file JSON)
-            struct[level][topic].push({
-                id: String(r['id'] || Math.random().toString(36).substr(2, 6)),
-                en: String(r['word'] || r['english'] || ''),
-                vi: String(r['meaning_vi'] || r['vietnamese'] || ''),
-                type: String(r['pos'] || r['type'] || ''),
-                ipa: String(r['ipa'] || ''),
-                example: String(r['example_en'] || r['example'] || '')
-            });
-        });
-
-        // 2. TẠO CẤU TRÚC THƯ MỤC ẢO
-        let packCount = 0;
-        
-        for (const [lvl, topics] of Object.entries(struct)) {
-            // Tên thư mục cấp 1: B1 -> b1
-            const dirName = lvl.toLowerCase().replace(/[^a-z0-9]/g, '');
-            const folder = zip.folder(dirName);
-
-            for (const [topicName, words] of Object.entries(topics)) {
-                // Tên file cấp 2: Technology -> technology.json
-                const fileName = topicName.toLowerCase().replace(/[^a-z0-9]/g, '_') + ".json";
-                
-                // Nội dung file JSON (Lazy Load Unit)
-                const packContent = [{
-                    id: `topic_${fileName.replace('.json', '')}`,
-                    name: topicName,
-                    icon: "fa-book",
-                    words: words
-                }];
-
-                // Đưa file vào Zip
-                folder.file(fileName, JSON.stringify(packContent, null, 2));
-
-                // Thêm vào Index tổng (Metadata Only)
-                topicsIndex.push({
-                    id: `pack_${fileName.replace('.json', '')}`,
-                    name: topicName,
-                    desc: `Chủ đề ${topicName} (${lvl})`,
-                    level: lvl.toUpperCase(), // App sẽ dùng cái này để Khóa Level
-                    file: `${dirName}/${fileName}`, // Đường dẫn tương đối chuẩn
-                    count: words.length,
-                    icon: "fa-folder",
-                    color: "#4F46E5"
-                });
-                
-                packCount++;
-            }
-        }
-
-        // 3. TẠO FILE INDEX (Master File)
-        // App chỉ cần load file này khi khởi động -> Siêu nhanh
-        topicsIndex.sort((a, b) => a.level.localeCompare(b.level));
-        zip.file("topics_index.json", JSON.stringify(topicsIndex, null, 2));
-
-        // 4. XUẤT FILE ZIP
-        const content = await zip.generateAsync({ type: "blob" });
-        saveAs(content, "data_optimized.zip");
-
-        this.showToast(`✅ Đã xong! Tạo ${packCount} gói chủ đề.`, "success");
-        alert(`Đã tạo cấu trúc Data chuẩn Scale!\n\n👉 Giải nén file zip này vào thư mục 'data/' của dự án.\n\nCấu trúc mới giúp App chỉ tải những gì cần thiết (Lazy Loading).`);
-    },
+    
 
 };
 
