@@ -1786,8 +1786,9 @@ const App = {
         this.showToast("Đã copy JSON vào bộ nhớ đệm!");
     },
 
-    // --- TÍNH NĂNG: SUPER DATA DASHBOARD (READ-ONLY) ---
+    // --- TÍNH NĂNG: DATA DASHBOARD (GIAO DIỆN ĐẦY ĐỦ) ---
     openDataDashboard() {
+        // HTML cho giao diện Dashboard
         const modalHTML = `
             <div id="data-dashboard" class="modal-overlay show" style="padding:0; background:var(--bg); align-items:flex-start">
                 <div style="width:100%; height:100%; display:flex; flex-direction:column; background:#F8FAFC">
@@ -1797,136 +1798,61 @@ const App = {
                             <div style="width:36px; height:36px; background:#6366F1; border-radius:8px; display:flex; align-items:center; justify-content:center; color:white"><i class="fa-solid fa-server"></i></div>
                             <div>
                                 <h3 style="margin:0; color:#1E293B; font-size:1.1rem">Data Inspector</h3>
-                                <div style="font-size:0.75rem; color:#64748B">Read-only Mode</div>
+                                <div style="font-size:0.75rem; color:#64748B">System Management</div>
                             </div>
                         </div>
-                        <button onclick="document.getElementById('data-dashboard').remove()" style="width:36px; height:36px; border:none; background:#F1F5F9; border-radius:8px; font-size:1.1rem; cursor:pointer; color:#64748B hover:bg-red-50"><i class="fa-solid fa-xmark"></i></button>
+                        <button onclick="document.getElementById('data-dashboard').remove()" style="width:36px; height:36px; border:none; background:#F1F5F9; border-radius:8px; font-size:1.1rem; cursor:pointer; color:#64748B"><i class="fa-solid fa-xmark"></i></button>
                     </div>
 
-                    <div style="background:white; border-bottom:1px solid #E2E8F0; padding:0 20px; display:flex; gap:20px">
-                        <button class="dash-tab active" onclick="App.switchDashTab(this, 'tab-db')"><i class="fa-solid fa-table"></i> Database Grid</button>
-                        <button class="dash-tab" onclick="App.switchDashTab(this, 'tab-files')"><i class="fa-regular fa-folder-open"></i> File System</button>
-                        <button class="dash-tab" onclick="App.switchDashTab(this, 'tab-stats')"><i class="fa-solid fa-chart-pie"></i> Statistics</button>
+                    <div style="background:white; border-bottom:1px solid #E2E8F0; padding:10px 20px; display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+                        <button class="dash-tab active" onclick="App.switchDashTab(this, 'tab-db')"><i class="fa-solid fa-table"></i> Database</button>
+                        <button class="dash-tab" onclick="App.switchDashTab(this, 'tab-files')"><i class="fa-regular fa-folder-open"></i> Files</button>
+                        
+                        <div style="margin-left:auto;">
+                            <input type="file" id="csv-upload" accept=".csv" style="display:none" onchange="App.handleCsvToStructure(this)">
+                            <button onclick="document.getElementById('csv-upload').click()" style="background:#6366F1; color:white; border:none; padding:8px 15px; border-radius:8px; cursor:pointer; font-weight:700; display:flex; align-items:center; gap:8px; box-shadow:0 2px 5px rgba(99, 102, 241, 0.3)">
+                                <i class="fa-solid fa-file-csv"></i> Import CSV & Build Data
+                            </button>
+                        </div>
                     </div>
 
                     <div style="flex:1; overflow:hidden; position:relative">
                         
                         <div id="tab-db" class="dash-content" style="height:100%; display:flex; flex-direction:column;">
-                            <div style="padding:15px 20px; background:#F8FAFC; border-bottom:1px solid #E2E8F0; display:flex; gap:10px">
-                                <div style="flex:1; position:relative">
-                                    <i class="fa-solid fa-search" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#94A3B8"></i>
-                                    <input type="text" id="db-search-input" placeholder="Lọc theo ID, Từ vựng, Nghĩa..." onkeyup="App.renderDatabaseGrid()" 
-                                        style="width:100%; padding:10px 10px 10px 35px; border:1px solid #CBD5E1; border-radius:8px; outline:none">
+                            <div style="padding:15px 20px; background:#F8FAFC; border-bottom:1px solid #E2E8F0;">
+                                <input type="text" id="db-search-input" placeholder="Tìm kiếm trong RAM..." onkeyup="App.renderDatabaseGrid()" 
+                                    style="width:100%; padding:10px; border:1px solid #CBD5E1; border-radius:8px;">
+                            </div>
+                            <div id="db-grid-body" style="flex:1; overflow-y:auto; background:white; padding:10px;">
                                 </div>
-                                <select id="db-filter-level" onchange="App.renderDatabaseGrid()" style="padding:0 15px; border-radius:8px; border:1px solid #CBD5E1; background:white; cursor:pointer">
-                                    <option value="all">Tất cả Level</option>
-                                    <option value="learned">Đã học (Lvl > 0)</option>
-                                    <option value="master">Master (Lvl 6)</option>
-                                </select>
-                            </div>
-
-                            <div style="display:grid; grid-template-columns: 80px 1fr 1fr 80px 100px 150px; background:#F1F5F9; border-bottom:1px solid #E2E8F0; padding:10px 20px; font-size:0.75rem; font-weight:700; color:#64748B; text-transform:uppercase">
-                                <div>ID</div>
-                                <div>English</div>
-                                <div>Vietnamese</div>
-                                <div>Level</div>
-                                <div>Streak</div>
-                                <div>Next Review</div>
-                            </div>
-
-                            <div id="db-grid-body" style="flex:1; overflow-y:auto; background:white;">
-                                </div>
-                            
-                            <div style="padding:8px 20px; background:#F8FAFC; border-top:1px solid #E2E8F0; font-size:0.75rem; color:#64748B; display:flex; justify-content:space-between">
-                                <span id="db-status-count">Đang hiển thị: 0 dòng</span>
-                                <span><i class="fa-solid fa-circle" style="color:#10B981; font-size:0.6rem"></i> Live Data (RAM)</span>
-                            </div>
                         </div>
 
                         <div id="tab-files" class="dash-content" style="display:none; padding:20px; overflow-y:auto; height:100%">
-                            
-                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom:20px">
-                                <div class="dash-card" style="padding:15px; display:flex; align-items:center; gap:15px">
-                                    <div style="width:45px; height:45px; background:#EEF2FF; color:#4F46E5; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1.2rem"><i class="fa-solid fa-folder-tree"></i></div>
-                                    <div>
-                                        <div style="font-size:0.8rem; color:#64748B">Tổng số gói</div>
-                                        <div style="font-size:1.2rem; font-weight:800; color:#1E293B">${this.packList.length}</div>
-                                    </div>
-                                </div>
-                                <div class="dash-card" style="padding:15px; display:flex; align-items:center; gap:15px">
-                                    <div style="width:45px; height:45px; background:#ECFDF5; color:#10B981; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1.2rem"><i class="fa-solid fa-file-code"></i></div>
-                                    <div>
-                                        <div style="font-size:0.8rem; color:#64748B">Tổng dung lượng (ước tính)</div>
-                                        <div style="font-size:1.2rem; font-weight:800; color:#1E293B">~${(this.packList.reduce((acc, p) => acc + (p.count || 50), 0) * 0.2).toFixed(1)} KB</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="dash-card" style="overflow:hidden; border:1px solid #E2E8F0; border-radius:12px">
-                                <table class="db-table" style="width:100%; border-collapse: collapse;">
-                                    <thead style="background:#F8FAFC; color:#64748B; font-size:0.75rem; text-transform:uppercase; border-bottom:1px solid #E2E8F0">
-                                        <tr>
-                                            <th style="padding:15px; text-align:left">Pack Info</th>
-                                            <th style="padding:15px; text-align:left">File Path</th>
-                                            <th style="padding:15px; text-align:center">Size</th>
-                                            <th style="padding:15px; text-align:right">Action</th>
-                                        </tr>
+                            <div class="dash-card" style="background:white; padding:15px; border-radius:12px; border:1px solid #E2E8F0">
+                                <h4><i class="fa-solid fa-network-wired"></i> Cấu trúc Gói (Packs)</h4>
+                                <table class="db-table" style="width:100%; margin-top:10px; border-collapse:collapse">
+                                    <thead style="background:#F1F5F9; color:#64748B; font-size:0.75rem">
+                                        <tr><th style="padding:10px">ID</th><th>Name</th><th>Path</th><th style="text-align:right">Size</th></tr>
                                     </thead>
                                     <tbody>
                                         ${this.packList.map(p => `
-                                            <tr style="border-bottom:1px solid #F1F5F9; transition:0.2s; cursor:pointer" onclick="App.inspectPackDetail('${p.file}', '${p.name}')" onmouseover="this.style.background='#F1F5F9'" onmouseout="this.style.background='white'">
-                                                <td style="padding:15px;">
-                                                    <div style="font-weight:600; color:#1E293B; margin-bottom:4px">${p.name}</div>
-                                                    <div style="font-family:monospace; color:#6366F1; background:#EEF2FF; display:inline-block; padding:2px 6px; border-radius:4px; font-size:0.75rem">${p.id}</div>
-                                                </td>
-                                                <td style="padding:15px; color:#64748B; font-size:0.85rem">
-                                                    <i class="fa-regular fa-file-lines" style="margin-right:5px"></i> /data/${p.file}
-                                                </td>
-                                                <td style="padding:15px; text-align:center">
-                                                    <span style="background:#F1F5F9; color:#475569; padding:4px 8px; border-radius:6px; font-weight:bold; font-size:0.8rem">${p.count || '?'} từ</span>
-                                                </td>
-                                                <td style="padding:15px; text-align:right">
-                                                    <button style="border:1px solid #E2E8F0; background:white; color:#6366F1; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:0.8rem; font-weight:600">
-                                                        <i class="fa-solid fa-eye"></i> Chi tiết
-                                                    </button>
-                                                </td>
+                                            <tr style="border-bottom:1px solid #F1F5F9">
+                                                <td style="padding:10px; font-family:monospace; color:#6366F1">${p.id}</td>
+                                                <td><b>${p.name}</b></td>
+                                                <td style="color:#64748B">/data/${p.file}</td>
+                                                <td style="text-align:right">${p.count || '?'} từ</td>
                                             </tr>
                                         `).join('')}
                                     </tbody>
                                 </table>
                             </div>
                         </div>
-
-                        <div id="inspector-detail-view" style="position:absolute; top:0; left:0; width:100%; height:100%; background:#F8FAFC; z-index:10; display:none; flex-direction:column">
-                            </div>
-
-                        <div id="tab-stats" class="dash-content" style="display:none; padding:20px; overflow-y:auto; height:100%">
-                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px">
-                                <div class="dash-card" style="text-align:center; padding:20px">
-                                    <div style="font-size:2rem; font-weight:800; color:#6366F1">${this.data.length}</div>
-                                    <div style="font-size:0.85rem; color:#64748B">Từ đang nạp trong RAM</div>
-                                </div>
-                                <div class="dash-card" style="text-align:center; padding:20px">
-                                    <div style="font-size:2rem; font-weight:800; color:#10B981">${Object.keys(this.userProgress).length}</div>
-                                    <div style="font-size:0.85rem; color:#64748B">Từ đã có tiến độ</div>
-                                </div>
-                            </div>
-                            
-                            <div class="dash-card" style="margin-top:20px">
-                                <h4><i class="fa-solid fa-memory"></i> Storage Inspector</h4>
-                                <div class="code-viewer" style="max-height:300px">
-                                    // User Progress (Raw JSON)
-                                    ${JSON.stringify(this.userProgress, null, 2)}
-                                </div>
-                            </div>
-                        </div>
-
                     </div>
                 </div>
             </div>
         `;
         document.body.insertAdjacentHTML('beforeend', modalHTML);
-        this.renderDatabaseGrid();
+        this.renderDatabaseGrid(); // Render dữ liệu ban đầu
     },
 
     // --- LOGIC RENDER DATABASE GRID (TỰ ĐỘNG) ---
@@ -2088,6 +2014,178 @@ const App = {
         if(confirm("Bạn có muốn mở trang web luyện nói do Tiến Rose phát triển không")) {
             window.open(targetUrl, '_blank');
         }
+    },
+
+    // --- IMPORT CSV & BUILD DATA ---
+    handleCsvToStructure(input) {
+        if (!input.files || !input.files[0]) return;
+        const file = input.files[0];
+
+        // Check thư viện
+        if (typeof Papa === 'undefined' || typeof JSZip === 'undefined') {
+            alert("LỖI: Chưa chèn thư viện PapaParse hoặc JSZip vào index.html!");
+            return;
+        }
+
+        this.showToast("⏳ Đang xử lý CSV...", "info");
+
+        Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            complete: (results) => {
+                this.buildScalableData(results.data);
+            },
+            error: (err) => {
+                alert("Lỗi đọc file CSV: " + err.message);
+            }
+        });
+    },
+
+    async buildScalableData(rows) {
+        try {
+            const zip = new JSZip();
+            const topicsIndex = [];
+            const struct = {}; 
+
+            // 1. Phân loại
+            rows.forEach(row => {
+                const r = {};
+                Object.keys(row).forEach(k => r[k.trim().toLowerCase()] = row[k]);
+
+                const level = (r['level'] || 'General').trim(); 
+                const topic = (r['topic'] || 'Common').trim();
+
+                if (!struct[level]) struct[level] = {};
+                if (!struct[level][topic]) struct[level][topic] = [];
+
+                struct[level][topic].push({
+                    id: r['id'] || Math.random().toString(36).substr(2, 6),
+                    en: r['word'] || r['english'] || '',
+                    vi: r['meaning_vi'] || r['vietnamese'] || '',
+                    type: r['pos'] || '',
+                    ipa: r['ipa'] || '',
+                    example: r['example_en'] || ''
+                });
+            });
+
+            // 2. Tạo Zip
+            let count = 0;
+            for (const [lvl, topics] of Object.entries(struct)) {
+                const dirName = lvl.toLowerCase().replace(/[^a-z0-9]/g, '');
+                const folder = zip.folder(dirName);
+
+                for (const [topicName, words] of Object.entries(topics)) {
+                    const fileName = topicName.toLowerCase().replace(/[^a-z0-9]/g, '_') + ".json";
+                    const content = [{ id: `topic_${fileName}`, name: topicName, icon: "fa-book", words: words }];
+                    
+                    folder.file(fileName, JSON.stringify(content, null, 2));
+
+                    topicsIndex.push({
+                        id: `pack_${fileName.replace('.json','')}`,
+                        name: topicName,
+                        desc: `Chủ đề ${topicName} (${lvl})`,
+                        level: lvl.toUpperCase(),
+                        file: `${dirName}/${fileName}`,
+                        count: words.length,
+                        icon: "fa-folder",
+                        color: "#4F46E5"
+                    });
+                    count++;
+                }
+            }
+
+            topicsIndex.sort((a, b) => a.level.localeCompare(b.level));
+            zip.file("topics_index.json", JSON.stringify(topicsIndex, null, 2));
+
+            const content = await zip.generateAsync({ type: "blob" });
+            saveAs(content, "data_optimized.zip");
+            
+            this.showToast(`✅ Đã xong! ${count} gói.`, "success");
+
+        } catch (e) {
+            alert("Lỗi xử lý: " + e.message);
+        }
+    },
+    async buildScalableData(rows) {
+        const zip = new JSZip();
+        const topicsIndex = [];
+        const struct = {}; 
+
+        // 1. GOM NHÓM DỮ LIỆU (PARTITIONING)
+        // Mục tiêu: Biến danh sách phẳng thành struct[Level][Topic] = [Words]
+        rows.forEach(row => {
+            // Chuẩn hóa key: Xóa khoảng trắng, về chữ thường
+            const r = {};
+            Object.keys(row).forEach(k => r[k.trim().toLowerCase()] = row[k]);
+
+            // Lấy Level và Topic từ CSV để làm thư mục
+            const level = (r['level'] || 'General').trim(); 
+            const topic = (r['topic'] || 'Common').trim();
+
+            if (!struct[level]) struct[level] = {};
+            if (!struct[level][topic]) struct[level][topic] = [];
+
+            // Chỉ lấy các trường cần thiết (Giảm dung lượng file JSON)
+            struct[level][topic].push({
+                id: String(r['id'] || Math.random().toString(36).substr(2, 6)),
+                en: String(r['word'] || r['english'] || ''),
+                vi: String(r['meaning_vi'] || r['vietnamese'] || ''),
+                type: String(r['pos'] || r['type'] || ''),
+                ipa: String(r['ipa'] || ''),
+                example: String(r['example_en'] || r['example'] || '')
+            });
+        });
+
+        // 2. TẠO CẤU TRÚC THƯ MỤC ẢO
+        let packCount = 0;
+        
+        for (const [lvl, topics] of Object.entries(struct)) {
+            // Tên thư mục cấp 1: B1 -> b1
+            const dirName = lvl.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const folder = zip.folder(dirName);
+
+            for (const [topicName, words] of Object.entries(topics)) {
+                // Tên file cấp 2: Technology -> technology.json
+                const fileName = topicName.toLowerCase().replace(/[^a-z0-9]/g, '_') + ".json";
+                
+                // Nội dung file JSON (Lazy Load Unit)
+                const packContent = [{
+                    id: `topic_${fileName.replace('.json', '')}`,
+                    name: topicName,
+                    icon: "fa-book",
+                    words: words
+                }];
+
+                // Đưa file vào Zip
+                folder.file(fileName, JSON.stringify(packContent, null, 2));
+
+                // Thêm vào Index tổng (Metadata Only)
+                topicsIndex.push({
+                    id: `pack_${fileName.replace('.json', '')}`,
+                    name: topicName,
+                    desc: `Chủ đề ${topicName} (${lvl})`,
+                    level: lvl.toUpperCase(), // App sẽ dùng cái này để Khóa Level
+                    file: `${dirName}/${fileName}`, // Đường dẫn tương đối chuẩn
+                    count: words.length,
+                    icon: "fa-folder",
+                    color: "#4F46E5"
+                });
+                
+                packCount++;
+            }
+        }
+
+        // 3. TẠO FILE INDEX (Master File)
+        // App chỉ cần load file này khi khởi động -> Siêu nhanh
+        topicsIndex.sort((a, b) => a.level.localeCompare(b.level));
+        zip.file("topics_index.json", JSON.stringify(topicsIndex, null, 2));
+
+        // 4. XUẤT FILE ZIP
+        const content = await zip.generateAsync({ type: "blob" });
+        saveAs(content, "data_optimized.zip");
+
+        this.showToast(`✅ Đã xong! Tạo ${packCount} gói chủ đề.`, "success");
+        alert(`Đã tạo cấu trúc Data chuẩn Scale!\n\n👉 Giải nén file zip này vào thư mục 'data/' của dự án.\n\nCấu trúc mới giúp App chỉ tải những gì cần thiết (Lazy Loading).`);
     },
 
 };
